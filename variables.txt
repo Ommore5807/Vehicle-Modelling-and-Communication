@@ -1,0 +1,48 @@
+variables
+{
+  msTimer logTimer;
+  output file logFile;
+  long totalTorque = 0;
+  int torqueCount = 0;
+}
+
+on start
+{
+  setTimer(logTimer, 1000); // log every second
+  logFile = openFileWrite("PowertrainLog.txt");
+  write(logFile, "Time(ms)\tEngineSpeed(RPM)\tTorque(Nm)\n");
+}
+
+on message Engine_Data
+{
+  // Assume Engine_Data has engineSpeed and torque as signals
+  long rpm = this.engineSpeed;
+  long torque = this.torque;
+
+  totalTorque += torque;
+  torqueCount++;
+
+  if (torque > 500) // anomaly check
+  {
+    write("Warning: High Torque Detected = %d Nm", torque);
+  }
+}
+
+on timer logTimer
+{
+  long avgTorque = torqueCount > 0 ? totalTorque / torqueCount : 0;
+
+  write(logFile, "%d\t%d\t%d\n", getSysTimeMs(), this.engineSpeed, avgTorque);
+
+  // Reset counters
+  totalTorque = 0;
+  torqueCount = 0;
+
+  setTimer(logTimer, 1000);
+}
+
+on stop
+{
+  closeFile(logFile);
+  write("Powertrain logging stopped.");
+}
